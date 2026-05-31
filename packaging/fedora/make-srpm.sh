@@ -26,40 +26,46 @@ if [[ -n "$cmake_version" && "$cmake_version" != "$version" ]]; then
     exit 1
 fi
 
+resolve_git_commit() {
+    local repo_dir="$1"
+    local git_dir git_file head ref commit
+
+    if [[ -f "$repo_dir/.git" ]]; then
+        git_file="$(<"$repo_dir/.git")"
+        git_dir="${git_file#gitdir: }"
+        if [[ "$git_dir" != /* ]]; then
+            git_dir="$repo_dir/$git_dir"
+        fi
+    else
+        git_dir="$repo_dir/.git"
+    fi
+
+    if [[ ! -f "$git_dir/HEAD" ]]; then
+        return 1
+    fi
+
+    head="$(<"$git_dir/HEAD")"
+    if [[ "$head" == ref:\ * ]]; then
+        ref="${head#ref: }"
+        if [[ -f "$git_dir/$ref" ]]; then
+            commit="$(<"$git_dir/$ref")"
+        elif [[ -f "$git_dir/packed-refs" ]]; then
+            commit="$(awk -v ref="$ref" '$2 == ref { print $1; exit }' "$git_dir/packed-refs")"
+        fi
+    else
+        commit="$head"
+    fi
+
+    printf '%s\n' "${commit:-}"
+}
+
 mkdir -p "$staging_dir/$archive_name"
 if [[ "$source_mode" == "worktree" ]]; then
-    git -C "$repo_root" ls-files -z --cached --modified --others --exclude-standard | \
-        while IFS= read -r -d '' path; do
-            if [[ ! -e "$repo_root/$path" ]]; then
-                continue
-            fi
-
-            mkdir -p "$staging_dir/$archive_name/$(dirname "$path")"
-            cp -a "$repo_root/$path" "$staging_dir/$archive_name/$path"
-        done
-
-    git -C "$repo_root" submodule status --cached | while read -r _ path _rest; do
-        if [[ -z "$path" ]]; then
-            continue
-        fi
-        if [[ ! -d "$repo_root/$path/.git" && ! -f "$repo_root/$path/.git" ]]; then
-            echo "Skipping unavailable submodule: $path" >&2
-            continue
-        fi
-
-        git -C "$repo_root/$path" ls-files -z --cached --modified --others --exclude-standard | \
-            while IFS= read -r -d '' subpath; do
-                if [[ ! -e "$repo_root/$path/$subpath" ]]; then
-                    continue
-                fi
-
-                mkdir -p "$staging_dir/$archive_name/$path/$(dirname "$subpath")"
-                cp -a "$repo_root/$path/$subpath" "$staging_dir/$archive_name/$path/$subpath"
-            done
-    done
+    cp -a "$repo_root"/. "$staging_dir/$archive_name"
+    find "$staging_dir/$archive_name" -type d -name .git -prune -exec rm -rf {} +
+    find "$staging_dir/$archive_name" -type f -name .git -delete
 else
     git -C "$repo_root" archive HEAD | tar -x -C "$staging_dir/$archive_name"
-
     git -C "$repo_root" submodule status --cached | while read -r sha path _; do
         sha="${sha#-}"
         sha="${sha#+}"
@@ -81,8 +87,10 @@ else
         mkdir -p "$staging_dir/$archive_name/$path"
         git -C "$repo_root/$path" archive "$sha" | tar -x -C "$staging_dir/$archive_name/$path"
     done
-
 fi
+
+git_commit="$(resolve_git_commit "$repo_root")"
+printf '%s\n' "$git_commit" > "$staging_dir/$archive_name/.source-git-commit"
 
 tar -C "$staging_dir" -czf "$topdir/SOURCES/${archive_name}.tar.gz" "$archive_name"
 cp "$spec_file" "$topdir/SPECS/"

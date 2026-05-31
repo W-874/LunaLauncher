@@ -86,6 +86,10 @@ That target:
 - runs `packaging/fedora/make-srpm.sh`
 - copies the resulting `*.src.rpm` into COPR's expected output directory
 
+The generated source archive also carries `.source-git-commit`; the Fedora spec
+reads that file and passes it to CMake as `Launcher_GIT_COMMIT_OVERRIDE`, so
+the build can still show the short commit hash even without a `.git` directory.
+
 Recommended COPR package settings:
 
 - Source Type: `SCM`

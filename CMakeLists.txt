@@ -291,6 +291,10 @@ include(GetGitRevisionDescription)
 git_get_exact_tag(Launcher_GIT_TAG)
 get_git_head_revision(Launcher_GIT_REFSPEC Launcher_GIT_COMMIT)
 
+if(DEFINED Launcher_GIT_COMMIT_OVERRIDE AND NOT Launcher_GIT_COMMIT_OVERRIDE STREQUAL "")
+    set(Launcher_GIT_COMMIT "${Launcher_GIT_COMMIT_OVERRIDE}")
+endif()
+
 message(STATUS "Git commit: ${Launcher_GIT_COMMIT}")
 message(STATUS "Git tag: ${Launcher_GIT_TAG}")
 message(STATUS "Git refspec: ${Launcher_GIT_REFSPEC}")

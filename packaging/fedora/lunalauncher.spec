@@ -52,11 +52,16 @@ customization features.
 %autosetup -n %{name}-%{version}
 
 %build
+commit_override=""
+if [ -f %{_sourcedir}/.source-git-commit ]; then
+    commit_override="$(cat %{_sourcedir}/.source-git-commit)"
+fi
 %cmake \
     -DLauncher_BUILD_PLATFORM:STRING=%{build_platform} \
     -DLauncher_BUILD_ARTIFACT:STRING= \
     -DLauncher_UPDATER_GITHUB_REPO:STRING= \
     -DLauncher_ENABLE_JAVA_DOWNLOADER:BOOL=ON \
+    -DLauncher_GIT_COMMIT_OVERRIDE:STRING="${commit_override}" \
     -DBUILD_TESTING:BOOL=%{cmake_build_testing}
 %cmake_build
 
