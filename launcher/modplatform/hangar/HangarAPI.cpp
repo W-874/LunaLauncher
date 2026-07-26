@@ -43,6 +43,12 @@ bool optBool(const QJsonObject& obj, const QString& key, bool fallback = false)
 }
 }  // namespace
 
+std::pair<Task::Ptr, QByteArray*> HangarAPI::getProjects(QStringList pluginIds) const
+{
+    Q_UNUSED(pluginIds);
+    return { nullptr, nullptr };
+}
+
 Task::Ptr HangarAPI::getProjects(QStringList pluginIds, std::shared_ptr<QByteArray> response) const
 {
     // Hangar 不支持批量请求，需要多个单独请求

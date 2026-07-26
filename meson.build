@@ -1,7 +1,7 @@
 project(
   'LunaLauncher',
   ['c', 'cpp', 'java'],
-  version: '11.0.2',
+  version: '11.0.3',
   meson_version: '>=1.4.0',
   default_options: [
     'buildtype=release',
@@ -59,6 +59,9 @@ else
     ],
     language: ['c', 'cpp'],
   )
+  if cpp.has_argument('-Wno-sfinae-incomplete')
+    add_project_arguments('-Wno-sfinae-incomplete', language: 'cpp')
+  endif
 endif
 
 add_project_arguments(
@@ -69,18 +72,19 @@ add_project_arguments(
   language: 'cpp',
 )
 
-qt_core_dep = dependency('Qt6Core', method: 'cmake', required: true)
-qt_widgets_dep = dependency('Qt6Widgets', method: 'cmake', required: true)
-qt_network_dep = dependency('Qt6Network', method: 'cmake', required: true)
-qt_networkauth_dep = dependency('Qt6NetworkAuth', method: 'cmake', required: true)
-qt_concurrent_dep = dependency('Qt6Concurrent', method: 'cmake', required: true)
-qt_websockets_dep = dependency('Qt6WebSockets', method: 'cmake', required: true)
-qt_xml_dep = dependency('Qt6Xml', method: 'cmake', required: true)
-qt_gui_dep = dependency('Qt6Gui', method: 'cmake', required: true)
-qt_test_dep = dependency('Qt6Test', method: 'cmake', required: true)
-qt_opengl_dep = dependency('Qt6OpenGL', method: 'cmake', required: true)
-qt_multimedia_dep = dependency('Qt6Multimedia', method: 'cmake', required: true)
-qt_dbus_dep = dependency('Qt6DBus', method: 'cmake', required: false)
+qt_dependency_method = is_windows ? 'cmake' : 'pkg-config'
+qt_core_dep = dependency('Qt6Core', method: qt_dependency_method, required: true)
+qt_widgets_dep = dependency('Qt6Widgets', method: qt_dependency_method, required: true)
+qt_network_dep = dependency('Qt6Network', method: qt_dependency_method, required: true)
+qt_networkauth_dep = dependency('Qt6NetworkAuth', method: qt_dependency_method, required: true)
+qt_concurrent_dep = dependency('Qt6Concurrent', method: qt_dependency_method, required: true)
+qt_websockets_dep = dependency('Qt6WebSockets', method: qt_dependency_method, required: true)
+qt_xml_dep = dependency('Qt6Xml', method: qt_dependency_method, required: true)
+qt_gui_dep = dependency('Qt6Gui', method: qt_dependency_method, required: true)
+qt_test_dep = dependency('Qt6Test', method: qt_dependency_method, required: true)
+qt_opengl_dep = dependency('Qt6OpenGL', method: qt_dependency_method, required: true)
+qt_multimedia_dep = dependency('Qt6Multimedia', method: qt_dependency_method, required: true)
+qt_dbus_dep = dependency('Qt6DBus', method: qt_dependency_method, required: false)
 if is_windows
   qt_entrypoint_dep = cpp.find_library(
     'Qt6EntryPoint',
@@ -112,9 +116,10 @@ launcher_domain = 'lunalauncher.org'
 launcher_config_file = 'lunalauncher.cfg'
 launcher_git_url = 'https://github.com/AndreaFrederica/LunaLauncher'
 launcher_copyright = '© 2025 Luna Launcher Contributors\\n© 2022-2025 Prism Launcher Contributors\\n© 2021-2022 PolyMC Contributors\\n© 2012-2021 MultiMC Contributors'
-launcher_version_major = 11
-launcher_version_minor = 0
-launcher_version_patch = 2
+launcher_version_parts = meson.project_version().split('.')
+launcher_version_major = launcher_version_parts[0].to_int()
+launcher_version_minor = launcher_version_parts[1].to_int()
+launcher_version_patch = launcher_version_parts[2].to_int()
 launcher_version_prerelease = ''
 launcher_version_name = '@0@.@1@.@2@'.format(launcher_version_major, launcher_version_minor, launcher_version_patch)
 launcher_version_name4 = '@0@.@1@.@2@.0'.format(launcher_version_major, launcher_version_minor, launcher_version_patch)
@@ -183,15 +188,18 @@ compiler_target_processor = host_machine.cpu_family()
 
 if is_linux
   binary_dest_dir = 'bin'
-  exresource_dest_dir = join_paths('share', launcher_name, 'resources')
+  runtime_data_dest_dir = join_paths(get_option('datadir'), launcher_name)
+  jars_dest_dir = runtime_data_dest_dir
+  resources_dest_dir = runtime_data_dest_dir
+  exresource_dest_dir = join_paths(runtime_data_dest_dir, 'resources')
 else
   binary_dest_dir = '.'
+  jars_dest_dir = 'jars'
+  resources_dest_dir = '.'
   exresource_dest_dir = 'resource'
 endif
 library_dest_dir = '.'
 plugin_dest_dir = '.'
-resources_dest_dir = '.'
-jars_dest_dir = 'jars'
 framework_dest_dir = '.'
 
 subdir('program_info')
@@ -203,3 +211,19 @@ subdir('launcher')
 if get_option('build_testing')
   subdir('tests')
 endif
+
+summary(
+  {
+    'Version': meson.project_version(),
+    'Target platform': launcher_build_platform,
+    'Install prefix': get_option('prefix'),
+    'Runtime data': resources_dest_dir,
+    'Tests': get_option('build_testing'),
+    'Java downloader': launcher_enable_java_downloader,
+    'Ownership check disabled': launcher_disable_ownership_check,
+    'GameMode': gamemode_dep.found(),
+    'Bundled aria2c': launcher_bundle_aria2c,
+  },
+  section: 'Luna Launcher',
+  bool_yn: true,
+)

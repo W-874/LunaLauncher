@@ -8,7 +8,7 @@
 %endif
 
 Name:           lunalauncher
-Version:        11.0.2
+Version:        11.0.3
 Release:        1%{?dist}
 Summary:        Custom Minecraft launcher based on Prism Launcher
 
@@ -19,9 +19,7 @@ Source0:        %{name}-%{version}.tar.gz
 # Fedora/COPR baseline.
 # Keep Fedora-version-specific dependency adjustments grouped here so targets
 # like Fedora 42-rawhide can be carried in one spec.
-BuildRequires:  cmake >= 3.28
 BuildRequires:  desktop-file-utils
-BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
 BuildRequires:  java-devel
 BuildRequires:  meson >= 1.4.0
@@ -59,19 +57,6 @@ customization features.
 
 %install
 %meson_install
-install -Dm0644 %{_vpath_builddir}/program_info/org.lunalauncher.LunaLauncher.desktop \
-    %{buildroot}%{_datadir}/applications/org.lunalauncher.LunaLauncher.desktop
-install -Dm0644 %{_vpath_builddir}/program_info/org.lunalauncher.LunaLauncher.metainfo.xml \
-    %{buildroot}%{_datadir}/metainfo/org.lunalauncher.LunaLauncher.metainfo.xml
-install -Dm0644 program_info/org.lunalauncher.LunaLauncher.mime.xml \
-    %{buildroot}%{_datadir}/mime/packages/org.lunalauncher.LunaLauncher.xml
-install -Dm0644 program_info/org.lunalauncher.LunaLauncher.svg \
-    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/org.lunalauncher.LunaLauncher.svg
-install -Dm0644 program_info/org.lunalauncher.LunaLauncher_256.png \
-    %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/org.lunalauncher.LunaLauncher.png
-install -d %{buildroot}%{_mandir}/man6
-scdoc < program_info/lunalauncher.6.scd | gzip -c \
-    > %{buildroot}%{_mandir}/man6/lunalauncher.6.gz
 
 %check
 %if %{with tests}
@@ -113,6 +98,9 @@ fi
 %{_mandir}/man6/lunalauncher.6*
 
 %changelog
+* Mon Jul 27 2026 W-874 <1317825684@qq.com> - 11.0.3-1
+- Sync Prism Launcher 11.0.3 and use the complete Meson install layout
+
 * Sun May 24 2026 W-874 <1317825684@qq.com> - 11.0.2-1
 - Generalize Fedora packaging for COPR targets Fedora 42 through Rawhide
 

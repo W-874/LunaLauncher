@@ -19,6 +19,7 @@
 class HangarAPI : public ResourceAPI {
 public:
     // ResourceAPI 接口实现
+    std::pair<Task::Ptr, QByteArray*> getProjects(QStringList addonIds) const override;
     Task::Ptr getProjects(QStringList addonIds, std::shared_ptr<QByteArray> response) const override;
     void loadIndexedPack(ModPlatform::IndexedPack& pack, QJsonObject& obj) const override;
     ModPlatform::IndexedVersion loadIndexedPackVersion(QJsonObject& obj, ModPlatform::ResourceType type = ModPlatform::ResourceType::Plugin) const override;

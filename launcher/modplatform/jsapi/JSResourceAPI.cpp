@@ -14,6 +14,7 @@
 
 #include "JSResourceAPI.h"
 #include "Application.h"
+#include "net/ApiDownload.h"
 #include "net/NetJob.h"
 #include <QFile>
 #include <QFileInfo>
@@ -422,11 +423,58 @@ JSValue JSResourceAPI::jsonArrayToJSValue(const QJsonArray& arr) const
 // ResourceAPI 鎺ュ彛瀹炵幇
 // ============================================================================
 
+std::pair<Task::Ptr, QByteArray*> JSResourceAPI::getProjects(QStringList addonIds) const
+{
+    auto response = std::make_shared<QByteArray>();
+    auto* rawResponse = response.get();
+    auto task = getProjects(std::move(addonIds), std::move(response));
+    return { std::move(task), rawResponse };
+}
+
 Task::Ptr JSResourceAPI::getProjects(QStringList addonIds, std::shared_ptr<QByteArray> response) const
 {
-    // TODO: 璋冪敤 JS 鐨?getProjects 鏂规硶
-    qWarning() << "[JSResourceAPI] getProjects not implemented yet";
-    return Task::Ptr();
+    if (!response || addonIds.isEmpty()) {
+        return nullptr;
+    }
+
+    auto netJob = makeShared<NetJob>(QString("%1::GetProjects").arg(debugName()), APPLICATION->network());
+    QList<QByteArray*> projectResponses;
+    projectResponses.reserve(addonIds.size());
+
+    for (const auto& addonId : addonIds) {
+        auto url = getInfoURL(addonId);
+        if (!url.has_value()) {
+            qWarning() << "[JSResourceAPI] Failed to create project URL for" << addonId;
+            return nullptr;
+        }
+
+        auto [action, projectResponse] = Net::ApiDownload::makeByteArray(QUrl(*url));
+        netJob->addNetAction(action);
+        projectResponses.append(projectResponse);
+    }
+
+    QObject::connect(netJob.get(), &Task::succeeded, [response, projectResponses] {
+        QJsonArray projects;
+        for (const auto* projectResponse : projectResponses) {
+            QJsonParseError parseError{};
+            auto document = QJsonDocument::fromJson(*projectResponse, &parseError);
+            if (parseError.error != QJsonParseError::NoError) {
+                qWarning() << "[JSResourceAPI] Failed to parse project response:" << parseError.errorString();
+                continue;
+            }
+
+            if (document.isObject()) {
+                projects.append(document.object());
+            } else if (document.isArray()) {
+                for (const auto& project : document.array()) {
+                    projects.append(project);
+                }
+            }
+        }
+        *response = QJsonDocument(projects).toJson(QJsonDocument::Compact);
+    });
+
+    return netJob;
 }
 
 void JSResourceAPI::loadIndexedPack(ModPlatform::IndexedPack& pack, QJsonObject& obj) const

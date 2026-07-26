@@ -1,5 +1,5 @@
 pkgname=lunalauncher-git
-pkgver=11.0.2.r11009.ga27c5e269
+pkgver=11.0.3
 pkgrel=1
 pkgdesc='A custom Minecraft launcher based on Prism Launcher'
 arch=('x86_64')
@@ -24,7 +24,6 @@ depends=(
   'zlib'
 )
 makedepends=(
-  'cmake'
   'git'
   'java-environment>=8'
   'meson'
@@ -80,18 +79,4 @@ build() {
 
 package() {
   DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
-
-  install -Dm644 "$srcdir/build/program_info/org.lunalauncher.LunaLauncher.desktop" \
-    "$pkgdir/usr/share/applications/org.lunalauncher.LunaLauncher.desktop"
-  install -Dm644 "$srcdir/build/program_info/org.lunalauncher.LunaLauncher.metainfo.xml" \
-    "$pkgdir/usr/share/metainfo/org.lunalauncher.LunaLauncher.metainfo.xml"
-  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher.mime.xml" \
-    "$pkgdir/usr/share/mime/packages/org.lunalauncher.LunaLauncher.xml"
-  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher.svg" \
-    "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.lunalauncher.LunaLauncher.svg"
-  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher_256.png" \
-    "$pkgdir/usr/share/icons/hicolor/256x256/apps/org.lunalauncher.LunaLauncher.png"
-  install -d "$pkgdir/usr/share/man/man6"
-  scdoc < "$_repo_root/program_info/lunalauncher.6.scd" | gzip -c \
-    > "$pkgdir/usr/share/man/man6/lunalauncher.6.gz"
 }

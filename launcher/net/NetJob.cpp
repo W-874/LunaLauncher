@@ -95,7 +95,20 @@ void NetJob::executeTask()
 
 void NetJob::executeNextSubTask()
 {
-    // For BMCLAPI with active rate limiting, add delay between requests
+    // We're finished, check for failures and retry if we can (up to 3 times)
+    if (isRunning() && m_queue.isEmpty() && m_doing.isEmpty() && !m_failed.isEmpty() && m_try < 3) {
+        m_try += 1;
+        m_failed.removeIf([this](QHash<Task*, Task::Ptr>::iterator task) {
+            // there is no point in retying on 404 Not Found
+            if (static_cast<Net::NetRequest*>(task->get())->replyStatusCode() == 404) {
+                return false;
+            }
+            m_done.remove(task->get());
+            m_queue.enqueue(*task);
+            return true;
+        });
+    }
+
     if (m_is_bmclapi && m_bmclapi_delay_ms > 0 && !m_queue.isEmpty()) {
         QTimer::singleShot(m_bmclapi_delay_ms, this,
                            [this]() { QMetaObject::invokeMethod(this, "executeNextSubTask", Qt::QueuedConnection); });
@@ -146,12 +159,17 @@ auto NetJob::canAbort() const -> bool
 
 auto NetJob::abort() -> bool
 {
-    bool fullyAborted = true;
-
     // fail all downloads on the queue
     for (auto task : m_queue)
         m_failed.insert(task.get(), task);
     m_queue.clear();
+
+    if (m_doing.isEmpty()) {
+        // no downloads to abort, NetJob is not running
+        return true;
+    }
+
+    bool fullyAborted = true;
 
     // abort active downloads
     auto toKill = m_doing.values();
