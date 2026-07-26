@@ -25,9 +25,9 @@ depends=(
 )
 makedepends=(
   'cmake'
-  'extra-cmake-modules'
   'git'
   'java-environment>=8'
+  'meson'
   'ninja'
   'scdoc'
 )
@@ -39,31 +39,22 @@ sha256sums=()
 _repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 pkgver() {
-  local major minor patch rev_count short_hash
+  local version rev_count short_hash
 
-  major="$(
-    sed -nE 's/^set\(Launcher_VERSION_MAJOR ([0-9]+)\).*/\1/p' \
-      "$_repo_root/CMakeLists.txt" | head -n1
-  )"
-  minor="$(
-    sed -nE 's/^set\(Launcher_VERSION_MINOR ([0-9]+)\).*/\1/p' \
-      "$_repo_root/CMakeLists.txt" | head -n1
-  )"
-  patch="$(
-    sed -nE 's/^set\(Launcher_VERSION_PATCH ([0-9]+)\).*/\1/p' \
-      "$_repo_root/CMakeLists.txt" | head -n1
-  )"
+  version="$(sed -nE "s/^[[:space:]]*version: '([^']+)'.*/\1/p" \
+    "$_repo_root/meson.build" | head -n1)"
   rev_count="$(git -C "$_repo_root" rev-list --count HEAD)"
   short_hash="$(git -C "$_repo_root" rev-parse --short HEAD)"
 
-  printf '%s.%s.%s.r%s.g%s\n' "$major" "$minor" "$patch" "$rev_count" "$short_hash"
+  printf '%s.r%s.g%s\n' "$version" "$rev_count" "$short_hash"
 }
 
 prepare() {
   local required_paths=(
-    'libraries/libnbtplusplus/CMakeLists.txt'
-    'libraries/qtermwidget/CMakeLists.txt'
-    'libraries/quickjs-ng/CMakeLists.txt'
+    'libraries/cmark/meson.build'
+    'libraries/libnbtplusplus/include/nbt_tags.h'
+    'libraries/qtermwidget/lib/qtermwidget.cpp'
+    'libraries/quickjs-ng/quickjs.c'
   )
   local path
 
@@ -77,35 +68,30 @@ prepare() {
 }
 
 build() {
-  cmake -S "$_repo_root" -B "$srcdir/build" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DBUILD_TESTING=OFF \
-    -DENABLE_LTO=ON \
-    -DLauncher_BUILD_PLATFORM=archlinux
+  meson setup "$srcdir/build" "$_repo_root" \
+    --buildtype=release \
+    --prefix=/usr \
+    --wrap-mode=nodownload \
+    -Db_lto=true \
+    -Dbuild_testing=false
 
-  cmake --build "$srcdir/build"
+  meson compile -C "$srcdir/build"
 }
 
 package() {
-  DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+  DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
 
-  # quickjs is linked into the launcher at build time; these development
-  # artifacts and CLI tools are not required to run LunaLauncher itself.
-  rm -f \
-    "$pkgdir/usr/bin/qjs" \
-    "$pkgdir/usr/bin/qjsc" \
-    "$pkgdir/usr/include/quickjs.h" \
-    "$pkgdir/usr/include/quickjs-libc.h" \
-    "$pkgdir/usr/lib/libqjs.a"
-
-  rm -rf \
-    "$pkgdir/usr/lib/cmake/quickjs" \
-    "$pkgdir/usr/share/doc/quickjs"
-
-  rmdir --ignore-fail-on-non-empty \
-    "$pkgdir/usr/include" \
-    "$pkgdir/usr/lib/cmake" \
-    "$pkgdir/usr/lib" \
-    "$pkgdir/usr/share/doc"
+  install -Dm644 "$srcdir/build/program_info/org.lunalauncher.LunaLauncher.desktop" \
+    "$pkgdir/usr/share/applications/org.lunalauncher.LunaLauncher.desktop"
+  install -Dm644 "$srcdir/build/program_info/org.lunalauncher.LunaLauncher.metainfo.xml" \
+    "$pkgdir/usr/share/metainfo/org.lunalauncher.LunaLauncher.metainfo.xml"
+  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher.mime.xml" \
+    "$pkgdir/usr/share/mime/packages/org.lunalauncher.LunaLauncher.xml"
+  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.lunalauncher.LunaLauncher.svg"
+  install -Dm644 "$_repo_root/program_info/org.lunalauncher.LunaLauncher_256.png" \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/org.lunalauncher.LunaLauncher.png"
+  install -d "$pkgdir/usr/share/man/man6"
+  scdoc < "$_repo_root/program_info/lunalauncher.6.scd" | gzip -c \
+    > "$pkgdir/usr/share/man/man6/lunalauncher.6.gz"
 }

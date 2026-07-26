@@ -3,7 +3,7 @@
 This directory provides a Fedora/COPR baseline for building Luna Launcher as a
 COPR-friendly RPM without relying on the in-tree `CPack RPM` path.
 
-For distributable Fedora packages, use `CMAKE_INSTALL_PREFIX=/usr`.
+For distributable Fedora packages, use Meson's `--prefix=/usr`.
 Do not use `/usr/local` for RPM/COPR builds: `/usr/local` is intended for
 administrator-managed local software, while packaged files belong under `/usr`.
 
@@ -26,8 +26,7 @@ normal RPM spec because:
 
 The spec currently targets Fedora 42 through Rawhide and sets:
 
-- `CMAKE_INSTALL_PREFIX=/usr`
-- `Launcher_BUILD_PLATFORM=fedora${fedora}`
+- Meson with `--prefix=/usr` and network fallbacks disabled
 - system Qt 6 packages
 - standard RPM scriptlets for desktop, icon, and MIME caches
 
@@ -44,16 +43,13 @@ Run:
 ./packaging/fedora/make-srpm.sh
 ```
 
-If you want a local packaging-oriented CMake configure outside `rpmbuild`, the
-repository now includes the preset:
+If you want a local packaging-oriented configure outside `rpmbuild`, run:
 
 ```bash
-cmake --preset linux_fedora_packaging
+meson setup build --buildtype=release --prefix=/usr --wrap-mode=nodownload
 ```
 
-Use that preset only for packaging workflows. For normal local development,
-keep using the regular `linux` preset, which installs into the workspace-local
-`install/` directory.
+Use a separate build directory for normal local development.
 
 The script writes the source tarball and SRPM under `dist/fedora/rpmbuild/`.
 
@@ -81,7 +77,7 @@ Why:
 The repository now includes `.copr/Makefile` with an `srpm` target for COPR.
 That target:
 
-- rewrites the `libraries/quickjs-ng` submodule URL to HTTPS for builder access
+- synchronizes submodule URLs from `.gitmodules`
 - initializes submodules with `git submodule update --init --recursive`
 - runs `packaging/fedora/make-srpm.sh`
 - copies the resulting `*.src.rpm` into COPR's expected output directory

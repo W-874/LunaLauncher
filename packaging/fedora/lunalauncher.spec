@@ -1,11 +1,10 @@
 %global forgeurl https://github.com/W-874/LunaLauncher
 %global datadir_name LunaLauncher
-%global build_platform %(if [ -n "%{?fedora}" ]; then printf "fedora%s" "%{fedora}"; else printf "fedora"; fi)
 %bcond_with tests
 %if %{with tests}
-%global cmake_build_testing ON
+%global meson_build_testing true
 %else
-%global cmake_build_testing OFF
+%global meson_build_testing false
 %endif
 
 Name:           lunalauncher
@@ -25,6 +24,7 @@ BuildRequires:  desktop-file-utils
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
 BuildRequires:  java-devel
+BuildRequires:  meson >= 1.4.0
 BuildRequires:  ninja-build
 BuildRequires:  pkgconf-pkg-config
 BuildRequires:  qt6-qtbase-devel
@@ -52,25 +52,30 @@ customization features.
 %autosetup -n %{name}-%{version}
 
 %build
-%cmake \
-    -DLauncher_BUILD_PLATFORM:STRING=%{build_platform} \
-    -DLauncher_BUILD_ARTIFACT:STRING= \
-    -DLauncher_UPDATER_GITHUB_REPO:STRING= \
-    -DLauncher_ENABLE_JAVA_DOWNLOADER:BOOL=ON \
-    -DBUILD_TESTING:BOOL=%{cmake_build_testing}
-%cmake_build
+%meson \
+    --wrap-mode=nodownload \
+    -Dbuild_testing=%{meson_build_testing}
+%meson_build
 
 %install
-%cmake_install
-rm -f %{buildroot}%{_bindir}/qjs %{buildroot}%{_bindir}/qjsc
-rm -rf %{buildroot}%{_includedir}/quickjs*.h \
-       %{buildroot}%{_libdir}/libqjs.so \
-       %{buildroot}%{_libdir}/cmake/quickjs \
-       %{buildroot}%{_datadir}/doc/quickjs
+%meson_install
+install -Dm0644 %{_vpath_builddir}/program_info/org.lunalauncher.LunaLauncher.desktop \
+    %{buildroot}%{_datadir}/applications/org.lunalauncher.LunaLauncher.desktop
+install -Dm0644 %{_vpath_builddir}/program_info/org.lunalauncher.LunaLauncher.metainfo.xml \
+    %{buildroot}%{_datadir}/metainfo/org.lunalauncher.LunaLauncher.metainfo.xml
+install -Dm0644 program_info/org.lunalauncher.LunaLauncher.mime.xml \
+    %{buildroot}%{_datadir}/mime/packages/org.lunalauncher.LunaLauncher.xml
+install -Dm0644 program_info/org.lunalauncher.LunaLauncher.svg \
+    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/org.lunalauncher.LunaLauncher.svg
+install -Dm0644 program_info/org.lunalauncher.LunaLauncher_256.png \
+    %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/org.lunalauncher.LunaLauncher.png
+install -d %{buildroot}%{_mandir}/man6
+scdoc < program_info/lunalauncher.6.scd | gzip -c \
+    > %{buildroot}%{_mandir}/man6/lunalauncher.6.gz
 
 %check
 %if %{with tests}
-%ctest --output-on-failure
+%meson_test
 %endif
 
 %post
@@ -99,13 +104,11 @@ fi
 %license LICENSE
 %doc README.md
 %{_bindir}/lunalauncher
-%{_libdir}/libqjs.so.0*
 %{_datadir}/applications/org.lunalauncher.LunaLauncher.desktop
 %{_datadir}/icons/hicolor/256x256/apps/org.lunalauncher.LunaLauncher.png
 %{_datadir}/icons/hicolor/scalable/apps/org.lunalauncher.LunaLauncher.svg
 %{_datadir}/metainfo/org.lunalauncher.LunaLauncher.metainfo.xml
 %{_datadir}/mime/packages/org.lunalauncher.LunaLauncher.xml
-%{_datadir}/qlogging-categories6/*.categories
 %{_datadir}/%{datadir_name}/
 %{_mandir}/man6/lunalauncher.6*
 

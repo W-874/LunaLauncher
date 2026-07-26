@@ -13,16 +13,15 @@ trap 'rm -rf "$staging_dir"' EXIT
 
 mkdir -p "$output_dir" "$topdir"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
-cmake_major="$(sed -n 's/^set(Launcher_VERSION_MAJOR \([0-9][0-9]*\)).*/\1/p' "$repo_root/CMakeLists.txt" | head -n 1)"
-cmake_minor="$(sed -n 's/^set(Launcher_VERSION_MINOR \([0-9][0-9]*\)).*/\1/p' "$repo_root/CMakeLists.txt" | head -n 1)"
-cmake_patch="$(sed -n 's/^set(Launcher_VERSION_PATCH \([0-9][0-9]*\)).*/\1/p' "$repo_root/CMakeLists.txt" | head -n 1)"
-cmake_version=""
-if [[ -n "$cmake_major" && -n "$cmake_minor" && -n "$cmake_patch" ]]; then
-    cmake_version="${cmake_major}.${cmake_minor}.${cmake_patch}"
+meson_version="$(sed -n "s/^[[:space:]]*version: '\([^']*\)'.*/\1/p" "$repo_root/meson.build" | head -n 1)"
+
+if [[ -z "$meson_version" ]]; then
+    echo "Unable to read project version from meson.build" >&2
+    exit 1
 fi
 
-if [[ -n "$cmake_version" && "$cmake_version" != "$version" ]]; then
-    echo "Version mismatch: spec=$version, CMakeLists.txt=$cmake_version" >&2
+if [[ "$meson_version" != "$version" ]]; then
+    echo "Version mismatch: spec=$version, meson.build=$meson_version" >&2
     exit 1
 fi
 
